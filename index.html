@@ -1,32 +1,59 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <title>Jogo de Adivinhação</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Montserrat', Arial, sans-serif; }
+    .fade-in { animation: fadeIn 0.7s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px);} to { opacity: 1; transform: none;} }
+  </style>
 </head>
-<body>
-  <h1>Jogo de Adivinhação</h1>
-  <button id="startGame">Iniciar Novo Jogo</button>
-  <p id="gameId"></p>
-  <input type="number" id="guessInput" placeholder="Palpite (1-100)">
-  <button id="submitGuess">Enviar Palpite</button>
-  <p id="result"></p>
-  <button id="deleteGame">Excluir Jogo</button>
-
+<body class="bg-gray-50 min-h-screen flex items-center justify-center">
+  <div class="fade-in w-full max-w-lg mx-auto">
+    <div class="bg-white rounded-2xl shadow-xl p-10 flex flex-col gap-6">
+      <div class="flex flex-col items-center gap-2">
+        <span class="inline-block bg-blue-100 text-blue-600 rounded-full px-4 py-1 text-xs font-semibold tracking-wide">Jogo de Adivinhação</span>
+        <h1 class="text-3xl font-bold text-gray-900 mt-2 mb-1">Descubra o número secreto</h1>
+        <p class="text-gray-500 text-base">Tente adivinhar o número entre <span class="font-bold text-blue-600">1</span> e <span class="font-bold text-blue-600">100</span>.</p>
+      </div>
+      <div class="flex flex-col gap-4">
+        <button id="startGame" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl shadow hover:bg-blue-700 transition">Novo Jogo</button>
+        <div id="gameId" class="text-center text-sm text-blue-500 font-semibold"></div>
+        <input type="number" id="guessInput" placeholder="Seu palpite..." class="w-full border border-gray-300 rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+        <button id="submitGuess" class="w-full bg-green-600 text-white font-semibold py-3 rounded-xl shadow hover:bg-green-700 transition">Enviar Palpite</button>
+        <div id="result" class="text-center text-base min-h-[32px] font-semibold text-gray-700"></div>
+        <button id="deleteGame" class="w-full bg-gray-200 text-gray-700 font-semibold py-3 rounded-xl shadow hover:bg-gray-300 transition">Excluir Jogo</button>
+        <div id="indicator" class="mt-2 text-blue-400 hidden animate-pulse text-base">Executando...</div>
+      </div>
+    </div>
+  </div>
   <script>
     let gameId = null;
-    const apiUrl = '<http://localhost:3000>'; // Mude para URL do Vercel após deploy
+    const apiUrl = 'http://localhost:3000';
+    const indicator = document.getElementById('indicator');
 
-    document.getElementById('startGame').addEventListener('click', async () => {
+    function showIndicator(show = true) {
+      indicator.classList.toggle('hidden', !show);
+    }
+
+    document.getElementById('startGame').onclick = async () => {
+      showIndicator(true);
       const res = await fetch(`${apiUrl}/games`, { method: 'POST' });
       const data = await res.json();
       gameId = data.id;
-      document.getElementById('gameId').textContent = `ID do Jogo: ${gameId}`;
+      document.getElementById('gameId').textContent = `Sala: ${gameId}`;
       document.getElementById('result').textContent = 'Jogo iniciado!';
-    });
+      showIndicator(false);
+    };
 
-    document.getElementById('submitGuess').addEventListener('click', async () => {
+    document.getElementById('submitGuess').onclick = async () => {
       if (!gameId) return alert('Inicie um jogo primeiro!');
+      showIndicator(true);
       const guess = parseInt(document.getElementById('guessInput').value);
       const res = await fetch(`${apiUrl}/games/${gameId}/guess`, {
         method: 'PUT',
@@ -35,16 +62,19 @@
       });
       const data = await res.json();
       document.getElementById('result').textContent = data.message || data.error;
-    });
+      showIndicator(false);
+    };
 
-    document.getElementById('deleteGame').addEventListener('click', async () => {
+    document.getElementById('deleteGame').onclick = async () => {
       if (!gameId) return alert('Inicie um jogo primeiro!');
+      showIndicator(true);
       const res = await fetch(`${apiUrl}/games/${gameId}`, { method: 'DELETE' });
       const data = await res.json();
       document.getElementById('result').textContent = data.message || data.error;
       gameId = null;
       document.getElementById('gameId').textContent = '';
-    });
+      showIndicator(false);
+    };
   </script>
 </body>
 </html>

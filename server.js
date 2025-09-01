@@ -1,80 +1,73 @@
+// Importa dependências
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
+const { customAlphabet } = require('nanoid');
 const path = require('path');
 const app = express();
-const port = process.env.PORT || 3000;
+app.use(express.json());
 
-app.use(express.json()); // Para parsear JSON no body
+// Array in-memory para armazenar os jogos (stateless)
+let games = [];
 
-// Servir index.html na rota raiz
+// Gera um código de sessão de 4 caracteres (letras/números)
+const sessionId = customAlphabet('1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ', 4);
+
+// Serve o front-end
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// Banco in-memory (array de jogos)
-let games = [];
-
-// POST /games: Criar um novo jogo (não idempotente: cria novo cada vez)
+// Cria um novo jogo (POST, não idempotente)
 app.post('/games', (req, res) => {
-  const secretNumber = Math.floor(Math.random() * 100) + 1;
-  const newGame = {
-    id: uuidv4(),
-    secretNumber,
+  // Estado inicial do jogo
+  const game = {
+    id: sessionId(), // ID de sessão com 4 caracteres
+    secret: Math.floor(Math.random() * 100) + 1,
     attempts: 0,
-    maxAttempts: 10,
-    status: 'active', // active, won, lost
-    lastGuess: null
+    max: 10,
+    status: 'active'
   };
-  games.push(newGame);
-  res.status(201).json({ id: newGame.id, message: 'Jogo criado!' });
+  games.push(game);
+  res.status(201).json({ id: game.id });
 });
 
-// GET /games/:id: Obter estado do jogo (idempotente)
+// Consulta o estado do jogo (GET, idempotente)
 app.get('/games/:id', (req, res) => {
   const game = games.find(g => g.id === req.params.id);
   if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
-  res.json({
-    id: game.id,
-    attempts: game.attempts,
-    maxAttempts: game.maxAttempts,
-    status: game.status,
-    lastGuess: game.lastGuess
-  });
+  res.json(game);
 });
 
-// PUT /games/:id/guess: Atualizar com palpite (idempotente: repetir o mesmo palpite não muda após processado)
+// Envia um palpite (PUT, idempotente)
 app.put('/games/:id/guess', (req, res) => {
-  const { guess } = req.body;
-  if (!guess || typeof guess !== 'number' || guess < 1 || guess > 100) {
-    return res.status(400).json({ error: 'Palpite inválido (1-100)' });
-  }
   const game = games.find(g => g.id === req.params.id);
+  const guess = Number(req.body.guess);
   if (!game) return res.status(404).json({ error: 'Jogo não encontrado' });
   if (game.status !== 'active') return res.status(400).json({ error: 'Jogo finalizado' });
-
+  if (!guess || guess < 1 || guess > 100) return res.status(400).json({ error: 'Palpite inválido' });
   game.attempts++;
-  game.lastGuess = guess;
-
-  if (guess === game.secretNumber) {
+  if (guess === game.secret) {
     game.status = 'won';
-    return res.json({ message: 'Você ganhou!', status: game.status });
-  } else if (game.attempts >= game.maxAttempts) {
-    game.status = 'lost';
-    return res.json({ message: 'Você perdeu! Número era ' + game.secretNumber, status: game.status });
-  } else {
-    const hint = guess < game.secretNumber ? 'Maior' : 'Menor';
-    return res.json({ message: `Errado! Dica: ${hint}. Tentativas restantes: ${game.maxAttempts - game.attempts}` });
+    return res.json({ message: 'Você ganhou!' });
   }
+  if (game.attempts >= game.max) {
+    game.status = 'lost';
+    return res.json({ message: `Você perdeu! O número era ${game.secret}` });
+  }
+  res.json({ message: guess < game.secret ? 'Maior!' : 'Menor!' });
 });
 
-// DELETE /games/:id: Excluir jogo (idempotente: deletar repetidamente não muda)
+// Exclui um jogo (DELETE, idempotente)
 app.delete('/games/:id', (req, res) => {
-  const index = games.findIndex(g => g.id === req.params.id);
-  if (index === -1) return res.status(404).json({ error: 'Jogo não encontrado' });
-  games.splice(index, 1);
+  games = games.filter(g => g.id !== req.params.id);
   res.json({ message: 'Jogo excluído' });
 });
 
-app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+// Exemplo de endpoint extra: retorna todos os jogos ativos
+app.get('/games', (req, res) => {
+  res.json(games.filter(g => g.status === 'active'));
 });
+
+
+
+// Inicializa o servidor
+app.listen(3000, () => console.log('API rodando em <http://localhost:3000>'));
