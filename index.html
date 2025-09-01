@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Jogo de Adivinhação</title>
+</head>
+<body>
+  <h1>Jogo de Adivinhação</h1>
+  <button id="startGame">Iniciar Novo Jogo</button>
+  <p id="gameId"></p>
+  <input type="number" id="guessInput" placeholder="Palpite (1-100)">
+  <button id="submitGuess">Enviar Palpite</button>
+  <p id="result"></p>
+  <button id="deleteGame">Excluir Jogo</button>
+
+  <script>
+    let gameId = null;
+    const apiUrl = '<http://localhost:3000>'; // Mude para URL do Vercel após deploy
+
+    document.getElementById('startGame').addEventListener('click', async () => {
+      const res = await fetch(`${apiUrl}/games`, { method: 'POST' });
+      const data = await res.json();
+      gameId = data.id;
+      document.getElementById('gameId').textContent = `ID do Jogo: ${gameId}`;
+      document.getElementById('result').textContent = 'Jogo iniciado!';
+    });
+
+    document.getElementById('submitGuess').addEventListener('click', async () => {
+      if (!gameId) return alert('Inicie um jogo primeiro!');
+      const guess = parseInt(document.getElementById('guessInput').value);
+      const res = await fetch(`${apiUrl}/games/${gameId}/guess`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guess })
+      });
+      const data = await res.json();
+      document.getElementById('result').textContent = data.message || data.error;
+    });
+
+    document.getElementById('deleteGame').addEventListener('click', async () => {
+      if (!gameId) return alert('Inicie um jogo primeiro!');
+      const res = await fetch(`${apiUrl}/games/${gameId}`, { method: 'DELETE' });
+      const data = await res.json();
+      document.getElementById('result').textContent = data.message || data.error;
+      gameId = null;
+      document.getElementById('gameId').textContent = '';
+    });
+  </script>
+</body>
+</html>
